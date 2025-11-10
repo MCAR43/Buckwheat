@@ -30,3 +30,7 @@ log = "0.4"
 # [target.'cfg(windows)'.dependencies]
 # windows-record = "0.1"
 
+# MacOS-specific recording using scap crate
+[target.'cfg(target_os = "macos")'.dependencies]
+scap = { git = "https://github.com/CapSoftware/scap", branch = "main" }
+
