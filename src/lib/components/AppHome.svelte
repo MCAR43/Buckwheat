@@ -100,13 +100,6 @@
 					<p class="mt-1 break-all text-xs text-muted-foreground">{lastRecordingPath}</p>
 				</div>
 			{/if}
-
-			<div class="rounded-lg border bg-muted/50 p-4">
-				<p class="text-sm text-muted-foreground">
-					<strong>Dev Mode:</strong> Currently using mock recorder (no actual screen capture).
-					To enable real recording, build with <code class="rounded bg-muted px-1 py-0.5 text-xs">--features real-recording</code>
-				</p>
-			</div>
 		</CardContent>
 	</Card>
 </div>
