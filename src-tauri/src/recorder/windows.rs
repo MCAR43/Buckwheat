@@ -21,7 +21,7 @@ impl WindowsRecorder {
         }
     }
 
-    fn initialize_recorder(&mut self, output_path: &str, window_name: &str) -> Result<(), Error> {
+    fn initialize_recorder(&mut self, output_path: &str) -> Result<(), Error> {
         // Create recorder config with windows-record builder
         let config = WinRecorder::builder()
             .fps(30, 1)
@@ -30,10 +30,11 @@ impl WindowsRecorder {
             .output_path(output_path)
             .build();
 
-        // Create the recorder
+        // Create the recorder and target Slippi Dolphin window
+        // windows-record will search for windows containing "Slippi Dolphin"
         let recorder = WinRecorder::new(config)
             .map_err(|e| Error::InitializationError(format!("Failed to create recorder: {}", e)))?
-            .with_process_name(window_name);
+            .with_process_name("Slippi Dolphin");
 
         self.recorder = Some(recorder);
         self.output_path = Some(output_path.to_string());
@@ -51,9 +52,8 @@ impl Recorder for WindowsRecorder {
 
         log::info!("🎥 [Windows] Starting recording to: {}", output_path);
 
-        // Initialize the recorder with Dolphin window
-        // TODO: Make window name configurable or detect automatically
-        self.initialize_recorder(output_path, "Dolphin")?;
+        // Initialize the recorder targeting Slippi Dolphin window
+        self.initialize_recorder(output_path)?;
 
         // Start the recording
         if let Some(ref recorder) = self.recorder {

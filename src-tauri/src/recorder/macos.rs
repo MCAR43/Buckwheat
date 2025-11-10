@@ -24,13 +24,29 @@ impl MacOSRecorder {
     }
 
     fn initialize_capturer(&mut self, output_path: &str) -> Result<(), Error> {
-        // Get the main display to capture
-        let display = scap::get_main_display();
+        // Find all available capture targets (windows)
+        let targets = scap::get_all_targets();
+        
+        // Look for Slippi Dolphin window
+        let dolphin_window = targets.iter().find(|target| {
+            target.title.contains("Slippi") || 
+            target.title.contains("Dolphin") ||
+            target.title.contains("Melee")
+        });
+
+        // Use Dolphin window if found, otherwise fall back to main display
+        let target = if let Some(window) = dolphin_window {
+            log::info!("🎮 Found game window: {}", window.title);
+            scap::Target::Window(window.clone())
+        } else {
+            log::warn!("⚠️  Dolphin window not found, using main display");
+            scap::Target::Display(scap::get_main_display())
+        };
 
         // Create capturer options
         let options = Options {
             fps: 30,
-            target: Some(scap::Target::Display(display)),
+            target: Some(target),
             show_cursor: true,
             show_highlight: false,
             excluded_targets: None,
