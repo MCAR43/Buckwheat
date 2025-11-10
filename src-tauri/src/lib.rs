@@ -1,3 +1,4 @@
+mod app_state;
 mod commands;
 mod game_detector;
 mod recorder;
@@ -15,6 +16,9 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            // Initialize app state
+            app.manage(app_state::AppState::new());
+            
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
