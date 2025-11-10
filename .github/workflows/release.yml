@@ -8,6 +8,10 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: write
+  pull-requests: read
+
 jobs:
   create-release:
     name: Create Release
