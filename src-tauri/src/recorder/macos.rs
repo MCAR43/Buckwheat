@@ -25,12 +25,12 @@ impl MacOSRecorder {
 
     fn initialize_capturer(&mut self, output_path: &str) -> Result<(), Error> {
         // Get the main display to capture
-        let target = scap::get_main_display();
+        let display = scap::get_main_display();
 
         // Create capturer options
         let options = Options {
             fps: 30,
-            target: Some(target),
+            target: Some(scap::Target::Display(display)),
             show_cursor: true,
             show_highlight: false,
             excluded_targets: None,

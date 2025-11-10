@@ -8,6 +8,7 @@ use commands::slippi::{
     get_default_slippi_path, get_recordings, start_recording, start_watching, stop_recording,
     stop_watching,
 };
+use tauri::Manager;
 
 #[allow(clippy::missing_panics_doc)]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
