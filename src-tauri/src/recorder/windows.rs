@@ -1,17 +1,17 @@
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "real-recording"))]
 use super::{Error, Recorder};
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "real-recording"))]
 use windows_record::{Recorder as WinRecorder, RecorderConfig};
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "real-recording"))]
 pub struct WindowsRecorder {
     is_recording: bool,
     recorder: Option<WinRecorder>,
     output_path: Option<String>,
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "real-recording"))]
 impl WindowsRecorder {
     pub fn new() -> Self {
         Self {
@@ -42,7 +42,7 @@ impl WindowsRecorder {
     }
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "real-recording"))]
 impl Recorder for WindowsRecorder {
     fn start_recording(&mut self, output_path: &str) -> Result<(), Error> {
         if self.is_recording {
@@ -106,7 +106,7 @@ impl Recorder for WindowsRecorder {
     }
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "real-recording"))]
 impl Default for WindowsRecorder {
     fn default() -> Self {
         Self::new()

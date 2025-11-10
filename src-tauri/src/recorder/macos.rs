@@ -1,19 +1,19 @@
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "real-recording"))]
 use super::{Error, Recorder};
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "real-recording"))]
 use scap::capturer::{Capturer, Options, Resolution};
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "real-recording"))]
 use std::sync::{Arc, Mutex};
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "real-recording"))]
 pub struct MacOSRecorder {
     is_recording: bool,
     capturer: Option<Arc<Mutex<Capturer>>>,
     output_path: Option<String>,
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "real-recording"))]
 impl MacOSRecorder {
     pub fn new() -> Self {
         Self {
@@ -53,7 +53,7 @@ impl MacOSRecorder {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "real-recording"))]
 impl Recorder for MacOSRecorder {
     fn start_recording(&mut self, output_path: &str) -> Result<(), Error> {
         if self.is_recording {
@@ -120,7 +120,7 @@ impl Recorder for MacOSRecorder {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "real-recording"))]
 impl Default for MacOSRecorder {
     fn default() -> Self {
         Self::new()
