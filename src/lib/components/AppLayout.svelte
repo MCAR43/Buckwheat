@@ -19,14 +19,37 @@
 	import { navigation } from "$lib/stores/navigation.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
 	import { recording } from "$lib/stores/recording.svelte";
-	import { onMount } from "svelte";
+	import { onMount, onDestroy } from "svelte";
+	import { checkGameWindow } from "$lib/commands.svelte";
 
 	let sidebarOpen = $state(true);
 	let { children }: { children?: Snippet } = $props();
+	let pollingInterval: number | undefined;
 
-	// Initialize settings on mount
+	// Initialize settings and start game window polling
 	onMount(async () => {
 		await settings.init();
+		
+		// Check game window immediately
+		const windowDetected = await checkGameWindow();
+		recording.setGameWindow(windowDetected);
+
+		console.log("Game window detected:", windowDetected);
+		console.log("Polling interval:", pollingInterval);
+		
+		// Poll for game window every 2 seconds
+		pollingInterval = window.setInterval(async () => {
+			console.log("Polling for game window...");
+			const detected = await checkGameWindow();
+			recording.setGameWindow(detected);
+		}, 2000);
+	});
+
+	// Clean up polling interval on unmount
+	onDestroy(() => {
+		if (pollingInterval) {
+			clearInterval(pollingInterval);
+		}
 	});
 
 	// Reactive theme application
@@ -57,6 +80,47 @@
 		}
 		return settings.theme === "dark";
 	});
+
+	// Status indicator config
+	const statusConfig = $derived.by(() => {
+		const configs: Record<string, {
+			bg: string;
+			text: string;
+			circle: string;
+			label: string;
+			pulse: boolean;
+		}> = {
+			recording: {
+				bg: "bg-green-500/10",
+				text: "text-green-600 dark:text-green-400",
+				circle: "fill-green-500 text-green-500",
+				label: "Recording in Progress",
+				pulse: true
+			},
+			ready: {
+				bg: "bg-yellow-500/10",
+				text: "text-yellow-600 dark:text-yellow-400",
+				circle: "fill-yellow-500 text-yellow-500",
+				label: "Game Window Found",
+				pulse: false
+			},
+			waiting: {
+				bg: "bg-yellow-500/10",
+				text: "text-yellow-600 dark:text-yellow-400",
+				circle: "fill-yellow-500 text-yellow-500",
+				label: "Waiting for Game",
+				pulse: false
+			},
+			"no-window": {
+				bg: "bg-red-500/10",
+				text: "text-red-600 dark:text-red-400",
+				circle: "fill-red-500 text-red-500",
+				label: "No Game Window",
+				pulse: false
+			}
+		};
+		return configs[recording.status] || configs["no-window"];
+	});
 </script>
 
 <SidebarProvider bind:open={sidebarOpen}>
@@ -72,17 +136,22 @@
 							<span class="truncate font-semibold">Peppi</span>
 							<span class="truncate text-xs">Slippi Recorder</span>
 						</div>
-						{#if recording.isRecording}
-							<div class="flex items-center gap-1.5">
-								<Circle class="size-2 animate-pulse fill-red-500 text-red-500" />
-								<span class="text-xs font-medium text-red-500">LIVE</span>
-							</div>
-						{/if}
 					</SidebarMenuButton>
 				</SidebarMenuItem>
 			</SidebarMenu>
 		</SidebarHeader>
 		<SidebarContent>
+			<!-- Status Indicator -->
+			<SidebarGroup>
+				<div class="px-2 pb-2">
+					<div class="flex items-center gap-2 rounded-md {statusConfig.bg} {statusConfig.text} px-1 py-1 {statusConfig.pulse ? 'animate-pulse' : ''}">
+						<Circle class="size-1 {statusConfig.circle}" />
+						{#if sidebarOpen}
+							<span class="text-xs font-medium">{statusConfig.label}</span>
+						{/if}
+					</div>
+				</div>
+			</SidebarGroup>
 			<SidebarGroup>
 				<SidebarGroupLabel>Navigation</SidebarGroupLabel>
 				<SidebarGroupContent>

@@ -16,10 +16,13 @@ use windows_record::Recorder as WinRecorder;
 const DEFAULT_FPS: u32 = 60;
 #[cfg(all(target_os = "windows", feature = "real-recording"))]
 const FPS_DENOMINATOR: u32 = 1;
+// Let the library infer window size; avoid forcing dimensions.
 #[cfg(all(target_os = "windows", feature = "real-recording"))]
-const DEFAULT_WIDTH: u32 = 1920;
+use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
 #[cfg(all(target_os = "windows", feature = "real-recording"))]
-const DEFAULT_HEIGHT: u32 = 1080;
+use windows::Win32::UI::WindowsAndMessaging::{
+    EnumWindows, GetClassNameW, GetClientRect, GetWindowRect, GetWindowTextW, IsWindowVisible,
+};
 
 #[cfg(all(target_os = "windows", feature = "real-recording"))]
 pub struct WindowsRecorder {
@@ -41,21 +44,42 @@ impl WindowsRecorder {
         }
     }
 
-    fn find_dolphin_process_name(&self) -> Result<&'static str, Error> {
-        // Windows process names to search for (Slippi Dolphin)
-        // Common process names for Dolphin emulator on Windows
-        // We'll try "Dolphin.exe" first, which is the most common
-        // The windows-record library uses process names to find windows
-        
-        // Note: In a real implementation, we might want to enumerate
-        // processes and find the exact one, but for now we'll use
-        // the most common Dolphin process name
-        Ok("Dolphin.exe")
+    fn find_dolphin_process_name(&self) -> Result<(String, bool), Error> {
+        // Prefer an explicitly selected window provided via env
+        if let Ok(pid_str) = std::env::var("PEPPI_TARGET_PID") {
+            if let Ok(pid) = pid_str.parse::<u32>() {
+                if let Some(title) = resolve_title_by_pid(pid) {
+                    log::info!("Using title via PID {}: {}", pid, title);
+                    return Ok((title, true));
+                }
+            }
+        }
+        if let Ok(mut raw) = std::env::var("PEPPI_TARGET_WINDOW") {
+            let trimmed = raw.trim().to_string();
+            if let Some(idx) = trimmed.rfind("(PID:") {
+                let title = trimmed[..idx].trim_end().to_string();
+                if !title.is_empty() {
+                    log::info!("Using provided target window: {}", title);
+                    return Ok((title, true));
+                }
+            }
+            if !trimmed.is_empty() {
+                log::info!("Using provided target window: {}", trimmed);
+                return Ok((trimmed, true));
+            }
+        }
+
+        // Default fallback if nothing provided
+        let default_name = "Slippi Dolphin.exe";
+        log::info!("Using default target: {}", default_name);
+        Ok((default_name.to_string(), false))
     }
 
     fn initialize_recorder(&mut self, output_path: &str) -> Result<(), Error> {
-        let process_name = self.find_dolphin_process_name()?;
-        log::info!("🎮 Targeting process: {}", process_name);
+        let (process_name, prefer_exact_match) = self.find_dolphin_process_name()?;
+        log::info!("Targeting process/window: {}", process_name);
+        // Allow windows-record to capture even when the target window loses focus
+        std::env::set_var("WINDOWS_RECORD_REQUIRE_FOCUS", "0");
 
         // Ensure output directory exists
         if let Some(parent) = std::path::Path::new(output_path).parent() {
@@ -67,24 +91,33 @@ impl WindowsRecorder {
         }
 
         // Configure the recorder using builder pattern
-        let config = WinRecorder::builder()
+        let mut builder = WinRecorder::builder()
             .fps(DEFAULT_FPS, FPS_DENOMINATOR)
-            .input_dimensions(DEFAULT_WIDTH, DEFAULT_HEIGHT)
-            .output_dimensions(DEFAULT_WIDTH, DEFAULT_HEIGHT)
-            .capture_audio(false) // Match macOS implementation - no audio
-            .output_path(output_path)
-            .build();
+            .capture_audio(true)
+            // windows-record notes cursor capture is unstable with NV12/GDI, so disable it
+            .capture_cursor(false)
+            .output_path(output_path);
 
-        // Create recorder instance and target the Dolphin process
+        // Optionally honor a hint for final encode dimensions using the selected window.
+        let size_hint = std::env::var("PEPPI_TARGET_WINDOW")
+            .ok()
+            .and_then(|target| get_client_even_size_from_title(&target))
+            .or_else(|| get_client_even_size_from_title(&process_name));
+        if let Some((w, h)) = size_hint {
+            log::info!("Using window-derived output dimensions: {}x{}", w, h);
+            builder = builder.output_dimensions(w, h);
+        }
+
+        let config = builder.build();
+
+        // Create recorder instance and target the Dolphin window/process
         let recorder = WinRecorder::new(config)
-            .map_err(|e| {
-                Error::InitializationError(format!("Failed to create recorder: {:?}", e))
-            })?
-            .with_process_name(process_name);
+            .map_err(|e| Error::InitializationError(format!("Failed to create recorder: {:?}", e)))?
+            .with_process_name(&process_name)
+            .with_exact_match(prefer_exact_match);
 
         self.recorder = Some(Arc::new(Mutex::new(recorder)));
         self.output_path = Some(output_path.to_string());
-
         Ok(())
     }
 }
@@ -96,7 +129,7 @@ impl Recorder for WindowsRecorder {
             return Err(Error::RecordingFailed("Already recording".into()));
         }
 
-        log::info!("🎥 [Windows] Starting recording to {}", output_path);
+        log::info!("[Windows] Starting recording to {}", output_path);
         self.initialize_recorder(output_path)?;
 
         if let Some(recorder_arc) = &self.recorder {
@@ -114,7 +147,7 @@ impl Recorder for WindowsRecorder {
         }
 
         self.is_recording = true;
-        log::info!("✅ [Windows] Recording started");
+        log::info!("[Windows] Recording started");
         Ok(())
     }
 
@@ -123,7 +156,7 @@ impl Recorder for WindowsRecorder {
             return Err(Error::RecordingFailed("Not recording".into()));
         }
 
-        log::info!("⏹️  [Windows] Stopping recording");
+        log::info!("[Windows] Stopping recording");
 
         let stop_result = (|| -> Result<(), Error> {
             if let Some(recorder_arc) = &self.recorder {
@@ -135,7 +168,6 @@ impl Recorder for WindowsRecorder {
                     Error::RecordingFailed(format!("Failed to stop recording: {:?}", e))
                 })?;
             }
-
             Ok(())
         })();
 
@@ -149,8 +181,7 @@ impl Recorder for WindowsRecorder {
         self.is_recording = false;
 
         stop_result?;
-
-        log::info!("✅ [Windows] Recording saved to {}", output_path);
+        log::info!("[Windows] Recording saved to {}", output_path);
         Ok(output_path)
     }
 
@@ -164,4 +195,145 @@ impl Default for WindowsRecorder {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[cfg(all(target_os = "windows", feature = "real-recording"))]
+fn get_client_even_size_from_title(title_substr: &str) -> Option<(u32, u32)> {
+    struct Ctx<'a> {
+        needle: &'a str,
+        found: Option<HWND>,
+    }
+    unsafe extern "system" fn enum_cb(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let ctx = &mut *(lparam.0 as *mut Ctx);
+        if ctx.found.is_some() {
+            return BOOL(1);
+        }
+        let mut buf: [u16; 512] = [0; 512];
+        let len = GetWindowTextW(hwnd, &mut buf);
+        if len > 0 {
+            let title = String::from_utf16_lossy(&buf[..len as usize]).to_lowercase();
+            if title.contains(ctx.needle) {
+                ctx.found = Some(hwnd);
+                return BOOL(0);
+            }
+        }
+        BOOL(1)
+    }
+
+    // Strip optional " (PID: NNN)" suffix our UI appends, then lowercase
+    let mut cleaned = title_substr.trim().to_string();
+    if let Some(idx) = cleaned.rfind("(PID:") {
+        cleaned = cleaned[..idx].trim_end().to_string();
+    }
+    let needle = cleaned.to_lowercase();
+    let mut ctx = Ctx {
+        needle: &needle,
+        found: None,
+    };
+    unsafe {
+        let _ = EnumWindows(Some(enum_cb), LPARAM(&mut ctx as *mut _ as isize));
+    }
+    let hwnd = ctx.found?;
+
+    let mut rect = RECT::default();
+    unsafe {
+        if GetClientRect(hwnd, &mut rect).is_err() {
+            return None;
+        }
+    }
+    let mut w = (rect.right - rect.left).max(0) as u32;
+    let mut h = (rect.bottom - rect.top).max(0) as u32;
+    // NV12 requires even; keep even only (wider 16-align caused black output on some paths).
+    if w % 2 == 1 {
+        w -= 1;
+    }
+    if h % 2 == 1 {
+        h -= 1;
+    }
+    if w < 2 || h < 2 {
+        return None;
+    }
+    Some((w, h))
+}
+
+#[cfg(all(target_os = "windows", feature = "real-recording"))]
+fn resolve_title_by_pid(target_pid: u32) -> Option<String> {
+    // Collect (hwnd, title, class, w, h, visible)
+    unsafe extern "system" fn cb(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let data = &mut *(lparam.0 as *mut (u32, Vec<(HWND, String, String, i32, i32, bool)>));
+        let mut pid: u32 = 0;
+        windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        if pid == data.0 {
+            let mut title_buf: [u16; 512] = [0; 512];
+            let len = GetWindowTextW(hwnd, &mut title_buf);
+            let title = if len > 0 {
+                String::from_utf16_lossy(&title_buf[..len as usize])
+            } else {
+                String::new()
+            };
+
+            let mut class_buf: [u16; 256] = [0; 256];
+            let clen = GetClassNameW(hwnd, &mut class_buf);
+            let class_name = if clen > 0 {
+                String::from_utf16_lossy(&class_buf[..clen as usize])
+            } else {
+                String::new()
+            };
+
+            let visible = IsWindowVisible(hwnd).as_bool();
+
+            let mut rect = RECT::default();
+            let (w, h) = if GetWindowRect(hwnd, &mut rect).is_ok() {
+                (rect.right - rect.left, rect.bottom - rect.top)
+            } else {
+                (0, 0)
+            };
+
+            data.1.push((hwnd, title, class_name, w, h, visible));
+        }
+        BOOL(1)
+    }
+
+    let mut coll: (u32, Vec<(HWND, String, String, i32, i32, bool)>) = (target_pid, Vec::new());
+    unsafe {
+        let _ = EnumWindows(Some(cb), LPARAM(&mut coll as *mut _ as isize));
+    }
+    if coll.1.is_empty() {
+        return None;
+    }
+
+    // Score candidates: prefer Dolphin main window; avoid dummy/OpenGL pbuffers, dialogs, tooltips
+    fn score(title: &str, class_name: &str, w: i32, h: i32, visible: bool) -> i32 {
+        let t = title.to_lowercase();
+        let c = class_name.to_lowercase();
+        let mut s = 0;
+        if visible {
+            s += 2;
+        }
+        if c.contains("wxwindownr") {
+            s += 10;
+        }
+        if t.contains("slippi") || t.contains("melee") || t.contains("dolphin") {
+            s += 5;
+        }
+        if c.contains("nvopenglpbuffer")
+            || t.contains("__wgldummywindowfodder")
+            || t.contains("nvogldc invisible")
+        {
+            s -= 20;
+        }
+        if c.starts_with("#32770") || c.contains("tooltips") {
+            s -= 10;
+        }
+        if w > 300 && h > 200 {
+            s += 2;
+        }
+        s
+    }
+
+    coll.1
+        .into_iter()
+        .filter(|(_, t, _, w, h, _)| !t.is_empty() && *w > 100 && *h > 100)
+        .max_by_key(|(_, t, c, w, h, vis)| (score(t, c, *w, *h, *vis), (*w as i64) * (*h as i64)))
+        .map(|(_, t, _, _, _, _)| t)
 }

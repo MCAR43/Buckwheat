@@ -30,6 +30,7 @@ tauri = { version = "2", features = ["devtools"] }
 tauri-plugin-log = { version = "2" }
 tauri-plugin-store = { version = "2" }
 tauri-plugin-dialog = { version = "2" }
+tauri-plugin-fs = { version = "2" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
@@ -37,11 +38,24 @@ notify = "7.0"
 thiserror = "2.0"
 chrono = "0.4"
 log = "0.4"
+sysinfo = "0.31"
+base64 = "0.22"
+png = "0.17"
+
+[patch."https://github.com/judehek/windows-record"]
+windows-record = { path = "../tmp_windows_record" }
 
 # Windows-specific recording using the dope `windows-record` rust lib from Ascent <3
 # Only required when "real-recording" feature is enabled
 [target.'cfg(windows)'.dependencies]
 windows-record = { git = "https://github.com/judehek/windows-record", branch = "main", optional = true }
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Threading",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi"
+] }
 
 # MacOS-specific recording using screencapturekit-rs crate
 # Only required when "real-recording" feature is enabled

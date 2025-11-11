@@ -3,10 +3,13 @@ mod commands;
 mod game_detector;
 mod recorder;
 use commands::default::{read, write};
-use commands::settings::{get_recording_directory, get_setting, get_settings_path, open_settings_folder};
+use commands::settings::{
+    get_recording_directory, get_setting, get_settings_path, open_settings_folder,
+};
 use commands::slippi::{
-    get_default_slippi_path, get_recordings, start_recording, start_watching, stop_recording,
-    stop_watching,
+    capture_window_preview, check_game_window, get_default_slippi_path, get_game_process_name,
+    get_recordings, list_game_windows, open_file_location, set_game_process_name,
+    start_recording, start_watching, stop_recording, stop_watching,
 };
 use tauri::Manager;
 
@@ -16,10 +19,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             // Initialize app state
             app.manage(app_state::AppState::new());
-            
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -38,10 +42,16 @@ pub fn run() {
             start_recording,
             stop_recording,
             get_recordings,
+            check_game_window,
+            capture_window_preview,
+            list_game_windows,
+            get_game_process_name,
+            set_game_process_name,
             get_settings_path,
             open_settings_folder,
             get_setting,
-            get_recording_directory
+            get_recording_directory,
+            open_file_location
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,8 +1,8 @@
 pub mod slippi_paths;
 
+use crate::commands::errors::Error;
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use std::path::PathBuf;
-use crate::commands::errors::Error;
 
 pub struct GameDetector {
     slippi_path: PathBuf,
@@ -54,4 +54,3 @@ impl GameDetector {
         log::info!("⏹️  Stopped watching for .slp files");
     }
 }
-

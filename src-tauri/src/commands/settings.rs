@@ -1,5 +1,5 @@
-use tauri::{AppHandle, Manager};
 use std::path::PathBuf;
+use tauri::{AppHandle, Manager};
 
 #[tauri::command]
 pub fn get_settings_path(app: AppHandle) -> Result<String, String> {
@@ -9,7 +9,7 @@ pub fn get_settings_path(app: AppHandle) -> Result<String, String> {
         .map_err(|e| format!("Failed to get app data directory: {}", e))?;
 
     let settings_path = app_data_dir.join("settings.json");
-    
+
     Ok(settings_path
         .to_str()
         .ok_or("Invalid path encoding")?
@@ -48,9 +48,12 @@ pub fn open_settings_folder(app: AppHandle) -> Result<(), String> {
 /// Returns the value as a string, or None if the setting doesn't exist
 #[tauri::command]
 pub async fn get_setting(app: AppHandle, key: String) -> Result<Option<String>, String> {
-    let path = app.path().app_data_dir().map_err(|e| format!("Failed to get app data directory: {}", e))?;
+    let path = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
     let store_path = path.join("settings.json");
-    
+
     // Try to read setting from settings file
     if store_path.exists() {
         if let Ok(contents) = std::fs::read_to_string(&store_path) {
@@ -68,7 +71,7 @@ pub async fn get_setting(app: AppHandle, key: String) -> Result<Option<String>, 
             }
         }
     }
-    
+
     Ok(None)
 }
 
@@ -78,7 +81,7 @@ pub async fn get_setting(app: AppHandle, key: String) -> Result<Option<String>, 
 pub async fn get_recording_directory(app: AppHandle) -> Result<String, String> {
     // Get recordingPath from settings
     let recording_path = get_setting(app.clone(), "recordingPath".to_string()).await?;
-    
+
     // Determine the final path
     let final_path = if let Some(path) = recording_path {
         if path.trim().is_empty() {
@@ -86,7 +89,8 @@ pub async fn get_recording_directory(app: AppHandle) -> Result<String, String> {
             if let Some(home) = std::env::var_os("HOME") {
                 PathBuf::from(home).join("Movies").join("Bunbun Recordings")
             } else {
-                app.path().app_data_dir()
+                app.path()
+                    .app_data_dir()
                     .map_err(|e| format!("Failed to get app data directory: {}", e))?
                     .join("Recordings")
             }
@@ -108,21 +112,20 @@ pub async fn get_recording_directory(app: AppHandle) -> Result<String, String> {
         if let Some(home) = std::env::var_os("HOME") {
             PathBuf::from(home).join("Movies").join("Bunbun Recordings")
         } else {
-            app.path().app_data_dir()
+            app.path()
+                .app_data_dir()
                 .map_err(|e| format!("Failed to get app data directory: {}", e))?
                 .join("Recordings")
         }
     };
-    
+
     // Ensure the directory exists
     if let Err(e) = std::fs::create_dir_all(&final_path) {
         return Err(format!("Failed to create recording directory: {}", e));
     }
-    
+
     Ok(final_path
         .to_str()
         .ok_or("Invalid path encoding")?
         .to_string())
 }
-
-

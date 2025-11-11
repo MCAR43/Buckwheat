@@ -1,4 +1,4 @@
-use super::{Recorder, Error};
+use super::{Error, Recorder};
 use std::time::Instant;
 
 pub struct MockRecorder {
@@ -33,7 +33,9 @@ impl Recorder for MockRecorder {
 
     fn stop_recording(&mut self) -> Result<String, Error> {
         if !self.is_recording {
-            return Err(Error::RecordingFailed("Not currently recording".to_string()));
+            return Err(Error::RecordingFailed(
+                "Not currently recording".to_string(),
+            ));
         }
 
         let duration = self
@@ -67,4 +69,3 @@ impl Default for MockRecorder {
         Self::new()
     }
 }
-

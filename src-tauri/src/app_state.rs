@@ -1,11 +1,13 @@
 use crate::game_detector::GameDetector;
 use crate::recorder::Recorder;
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 /// Global application state managed by Tauri
 pub struct AppState {
     pub game_detector: Mutex<Option<GameDetector>>,
     pub recorder: Mutex<Option<Box<dyn Recorder + Send>>>,
+    pub settings: Mutex<HashMap<String, serde_json::Value>>,
 }
 
 impl AppState {
@@ -13,6 +15,7 @@ impl AppState {
         Self {
             game_detector: Mutex::new(None),
             recorder: Mutex::new(None),
+            settings: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -22,4 +25,3 @@ impl Default for AppState {
         Self::new()
     }
 }
-

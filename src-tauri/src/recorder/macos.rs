@@ -26,22 +26,18 @@ use objc::{
     class, msg_send,
     rc::StrongPtr,
     runtime::{Object, Sel},
-    sel, sel_impl,
-    MessageArguments,
+    sel, sel_impl, MessageArguments,
 };
-#[cfg(all(target_os = "macos", feature = "real-recording"))]
-use std::any::Any;
 #[cfg(all(target_os = "macos", feature = "real-recording"))]
 use screencapturekit::{
     shareable_content::{SCShareableContent, SCWindow},
     stream::{
-        configuration::SCStreamConfiguration,
-        content_filter::SCContentFilter,
-        output_trait::SCStreamOutputTrait,
-        output_type::SCStreamOutputType,
-        SCStream,
+        configuration::SCStreamConfiguration, content_filter::SCContentFilter,
+        output_trait::SCStreamOutputTrait, output_type::SCStreamOutputType, SCStream,
     },
 };
+#[cfg(all(target_os = "macos", feature = "real-recording"))]
+use std::any::Any;
 #[cfg(all(target_os = "macos", feature = "real-recording"))]
 use std::{
     path::Path,
@@ -128,11 +124,7 @@ impl MacOSRecorder {
         log::info!("🎮 Found game window: {}", window.title());
 
         let (width, height) = Self::desired_dimensions(&window);
-        log::info!(
-            "🖥️  Capturing window at {}x{}",
-            width,
-            height
-        );
+        log::info!("🖥️  Capturing window at {}x{}", width, height);
 
         let filter = SCContentFilter::new().with_desktop_independent_window(&window);
         let config = SCStreamConfiguration::new()
@@ -176,9 +168,9 @@ impl Recorder for MacOSRecorder {
         self.initialize_stream(output_path)?;
 
         if let Some(stream_arc) = &self.stream {
-            let stream_guard = stream_arc.lock().map_err(|e| {
-                Error::InitializationError(format!("Failed to lock stream: {e}"))
-            })?;
+            let stream_guard = stream_arc
+                .lock()
+                .map_err(|e| Error::InitializationError(format!("Failed to lock stream: {e}")))?;
             stream_guard
                 .start_capture()
                 .map_err(|e| Error::RecordingFailed(format!("Failed to start capture: {e}")))?;
@@ -204,9 +196,9 @@ impl Recorder for MacOSRecorder {
                 let mut stream = stream_arc
                     .lock()
                     .map_err(|e| Error::RecordingFailed(format!("Failed to lock stream: {e}")))?;
-                stream.stop_capture().map_err(|e| {
-                    Error::RecordingFailed(format!("Failed to stop capture: {e}"))
-                })?;
+                stream
+                    .stop_capture()
+                    .map_err(|e| Error::RecordingFailed(format!("Failed to stop capture: {e}")))?;
 
                 if let Some(handle) = self.output_handle.take() {
                     stream.remove_output_handler(handle, SCStreamOutputType::Screen);
@@ -214,9 +206,9 @@ impl Recorder for MacOSRecorder {
             }
 
             if let Some(writer) = &self.writer {
-                let mut writer = writer.lock().map_err(|e| {
-                    Error::RecordingFailed(format!("Writer lock poisoned: {e}"))
-                })?;
+                let mut writer = writer
+                    .lock()
+                    .map_err(|e| Error::RecordingFailed(format!("Writer lock poisoned: {e}")))?;
                 writer.finish()?;
             }
 
@@ -266,11 +258,7 @@ impl StreamFrameHandler {
 
 #[cfg(all(target_os = "macos", feature = "real-recording"))]
 impl SCStreamOutputTrait for StreamFrameHandler {
-    fn did_output_sample_buffer(
-        &self,
-        sample_buffer: CMSampleBuffer,
-        of_type: SCStreamOutputType,
-    ) {
+    fn did_output_sample_buffer(&self, sample_buffer: CMSampleBuffer, of_type: SCStreamOutputType) {
         if of_type != SCStreamOutputType::Screen {
             return;
         }
@@ -302,9 +290,7 @@ impl VideoWriter {
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
                 std::fs::create_dir_all(parent).map_err(|err| {
-                    Error::RecordingFailed(format!(
-                        "Failed to create output directory: {err}"
-                    ))
+                    Error::RecordingFailed(format!("Failed to create output directory: {err}"))
                 })?;
             }
         }
@@ -393,7 +379,8 @@ impl VideoWriter {
             .make_data_ready()
             .map_err(|e| Error::RecordingFailed(format!("Buffer not ready: {e:?}")))?;
 
-        let timestamp = unsafe { CMSampleBufferGetPresentationTimeStamp(sample_buffer.as_concrete_TypeRef()) };
+        let timestamp =
+            unsafe { CMSampleBufferGetPresentationTimeStamp(sample_buffer.as_concrete_TypeRef()) };
         let pixel_buffer = sample_buffer
             .get_pixel_buffer()
             .map_err(|e| Error::RecordingFailed(format!("Failed to get pixel buffer: {e:?}")))?;
