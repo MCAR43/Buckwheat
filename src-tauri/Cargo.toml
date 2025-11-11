@@ -14,7 +14,8 @@ default = []
 # Enable real screen recording (requires Xcode on macOS, VS on Windows)
 real-recording = [
     "screencapturekit",
-    "windows-record",
+    "windows-capture",
+    "wasapi",
     "objc",
     "core-foundation",
     "core-media-rs",
@@ -42,13 +43,9 @@ sysinfo = "0.31"
 base64 = "0.22"
 png = "0.17"
 
-[patch."https://github.com/judehek/windows-record"]
-windows-record = { path = "../tmp_windows_record" }
-
-# Windows-specific recording using the dope `windows-record` rust lib from Ascent <3
-# Only required when "real-recording" feature is enabled
 [target.'cfg(windows)'.dependencies]
-windows-record = { git = "https://github.com/judehek/windows-record", branch = "main", optional = true }
+windows-capture = { version = "2.0.0-alpha.7", optional = true }
+wasapi = { version = "0.21", optional = true }
 windows = { version = "0.58", features = [
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",
