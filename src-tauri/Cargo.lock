@@ -1746,6 +1746,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-range"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21dec9db110f5f872ed9699c3ecf50cf16f423502706ba5c72462e28d3157573"
+
+[[package]]
 name = "httparse"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2987,6 +2993,7 @@ dependencies = [
  "screencapturekit",
  "serde",
  "serde_json",
+ "ssbm-data",
  "sysinfo",
  "tauri",
  "tauri-build",
@@ -4130,6 +4137,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ssbm-data"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8bd82adb822786d3b653b0141c78f13029be11a9f5fefa0ffed6b55c88fc123"
+dependencies = [
+ "num_enum",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4349,6 +4365,7 @@ dependencies = [
  "gtk",
  "heck 0.5.0",
  "http",
+ "http-range",
  "jni",
  "libc",
  "log",

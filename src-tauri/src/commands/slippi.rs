@@ -284,6 +284,26 @@ async fn trigger_auto_recording(app: tauri::AppHandle, slp_path: String) -> Resu
     let output_path = format!("{}/{}.mp4", recording_dir, slp_filename);
     log::info!("📹 Output path: {}", output_path);
     
+    // Get recording quality from settings
+    let quality = {
+        let settings = state.settings.lock()
+            .map_err(|e| Error::InitializationError(format!("Failed to lock settings: {}", e)))?;
+        
+        let quality_str = settings.get("recordingQuality")
+            .and_then(|v| v.as_str())
+            .unwrap_or("high");
+        
+        match quality_str {
+            "low" => crate::recorder::RecordingQuality::Low,
+            "medium" => crate::recorder::RecordingQuality::Medium,
+            "high" => crate::recorder::RecordingQuality::High,
+            "ultra" => crate::recorder::RecordingQuality::Ultra,
+            _ => crate::recorder::RecordingQuality::High,
+        }
+    };
+    
+    log::info!("📊 Auto-recording quality: {:?} (bitrate: {} Mbps)", quality, quality.bitrate() / 1_000_000);
+    
     // Get or create recorder
     let mut recorder_lock = state
         .recorder
@@ -318,7 +338,7 @@ async fn trigger_auto_recording(app: tauri::AppHandle, slp_path: String) -> Resu
     
     // Start recording
     if let Some(recorder) = recorder_lock.as_mut() {
-        recorder.start_recording(&output_path)?;
+        recorder.start_recording(&output_path, quality)?;
         log::info!("✅ Auto-recording started: {}", output_path);
         
         // Store the .slp path associated with this recording
@@ -397,6 +417,26 @@ pub async fn stop_watching(state: State<'_, AppState>) -> Result<(), Error> {
 pub async fn start_recording(output_path: String, state: State<'_, AppState>) -> Result<(), Error> {
     log::info!("🎥 Starting recording to: {}", output_path);
 
+    // Get recording quality from settings
+    let quality = {
+        let settings = state.settings.lock()
+            .map_err(|e| Error::InitializationError(format!("Failed to lock settings: {}", e)))?;
+        
+        let quality_str = settings.get("recordingQuality")
+            .and_then(|v| v.as_str())
+            .unwrap_or("high");
+        
+        match quality_str {
+            "low" => crate::recorder::RecordingQuality::Low,
+            "medium" => crate::recorder::RecordingQuality::Medium,
+            "high" => crate::recorder::RecordingQuality::High,
+            "ultra" => crate::recorder::RecordingQuality::Ultra,
+            _ => crate::recorder::RecordingQuality::High,
+        }
+    };
+    
+    log::info!("📊 Recording quality: {:?} (bitrate: {} Mbps)", quality, quality.bitrate() / 1_000_000);
+
     // Get or create recorder
     let mut recorder_lock = state
         .recorder
@@ -431,7 +471,7 @@ pub async fn start_recording(output_path: String, state: State<'_, AppState>) ->
 
     // Start recording
     if let Some(recorder) = recorder_lock.as_mut() {
-        recorder.start_recording(&output_path)?;
+        recorder.start_recording(&output_path, quality)?;
         log::info!("✅ Recording started successfully");
         Ok(())
     } else {
@@ -1372,6 +1412,21 @@ pub fn open_file_location(path: String) -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+/// Parse a .slp file and extract game events (deaths, combos, etc.)
+#[tauri::command]
+pub async fn parse_slp_events(slp_path: String) -> Result<Vec<crate::slippi::GameEvent>, Error> {
+    log::info!("🎮 Parsing SLP events for: {}", slp_path);
+    
+    // Parse the .slp file
+    let game = crate::slippi::parse_slp_file(&slp_path)?;
+    
+    // Extract death events
+    let events = crate::slippi::extract_death_events(&game)?;
+    
+    log::info!("✅ Extracted {} events", events.len());
+    Ok(events)
 }
 
 // --- Windows-only helpers for preview capture ---

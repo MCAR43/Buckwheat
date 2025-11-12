@@ -16,6 +16,7 @@
 	import { Play, FolderOpen, Trash2, Upload, RefreshCw } from "@lucide/svelte";
 	import { invoke } from "@tauri-apps/api/core";
 	import { handleTauriError, showSuccess } from "$lib/utils/errors";
+	import { navigation } from "$lib/stores/navigation.svelte";
 
 	let isRefreshing = $state(false);
 
@@ -36,15 +37,9 @@
 		}
 	}
 
-	async function handlePlayVideo(videoPath: string | null) {
-		if (!videoPath) return;
-		
-		try {
-			await invoke("open_video", { videoPath });
-			console.log("🎬 Playing video:", videoPath);
-		} catch (e) {
-			handleTauriError(e, "Failed to open video");
-		}
+	function handlePlayVideo(id: string) {
+		// Navigate to the replay viewer instead of opening externally
+		navigation.navigateToReplay(id);
 	}
 
 	async function handleOpenFolder(videoPath: string | null) {
@@ -222,8 +217,8 @@
 										<Button
 											variant="ghost"
 											size="sm"
-											onclick={() => handlePlayVideo(recording.video_path)}
-											title="Play video"
+											onclick={() => handlePlayVideo(recording.id)}
+											title="Watch replay"
 										>
 											<Play class="size-4" />
 										</Button>

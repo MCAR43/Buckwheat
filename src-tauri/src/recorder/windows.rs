@@ -99,11 +99,15 @@ impl WindowsRecorder {
         width: u32,
         height: u32,
         output_path: &str,
+        quality: super::RecordingQuality,
     ) -> Result<VideoEncoder, Error> {
+        let bitrate = quality.bitrate();
+        log::info!("🎬 Building encoder with {:?} quality (bitrate: {} Mbps)", quality, bitrate / 1_000_000);
+        
         let video_settings = VideoSettingsBuilder::new(width, height)
             .sub_type(VideoSettingsSubType::H264)
             .frame_rate(TARGET_FPS)
-            .bitrate(18_000_000);
+            .bitrate(bitrate);
 
         let audio_settings = AudioSettingsBuilder::new().disabled(false);
         let container_settings = ContainerSettingsBuilder::new();
@@ -120,7 +124,7 @@ impl WindowsRecorder {
 
 #[cfg(all(target_os = "windows", feature = "real-recording"))]
 impl Recorder for WindowsRecorder {
-    fn start_recording(&mut self, output_path: &str) -> Result<(), Error> {
+    fn start_recording(&mut self, output_path: &str, quality: super::RecordingQuality) -> Result<(), Error> {
         if self.is_recording {
             return Err(Error::RecordingFailed("Already recording".into()));
         }
@@ -128,11 +132,11 @@ impl Recorder for WindowsRecorder {
         self.ensure_output_dir(output_path)?;
         let target = self.resolve_target_window()?;
         info!(
-            "Starting Windows capture for '{}' (pid {}, {}x{})",
-            target.title, target.pid, target.width, target.height,
+            "Starting Windows capture for '{}' (pid {}, {}x{}) with {:?} quality",
+            target.title, target.pid, target.width, target.height, quality
         );
 
-        let encoder = self.build_encoder(target.width, target.height, output_path)?;
+        let encoder = self.build_encoder(target.width, target.height, output_path, quality)?;
         let shared = Arc::new(SharedRecorderState::new(encoder));
         let capture_settings = Settings::new(
             target.window,

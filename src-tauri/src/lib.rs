@@ -2,6 +2,7 @@ mod app_state;
 mod commands;
 mod game_detector;
 mod recorder;
+mod slippi;
 use commands::default::{read, write};
 use commands::settings::{
     get_recording_directory, get_setting, get_settings_path, open_settings_folder,
@@ -9,8 +10,8 @@ use commands::settings::{
 use commands::slippi::{
     capture_window_preview, check_game_window, delete_recording, get_default_slippi_path,
     get_game_process_name, get_last_replay_path, get_recordings, list_game_windows,
-    open_file_location, open_recording_folder, open_video, set_game_process_name,
-    start_recording, start_watching, stop_recording, stop_watching,
+    open_file_location, open_recording_folder, open_video, parse_slp_events,
+    set_game_process_name, start_recording, start_watching, stop_recording, stop_watching,
 };
 use tauri::Manager;
 
@@ -56,7 +57,8 @@ pub fn run() {
             get_setting,
             get_recording_directory,
             open_file_location,
-            get_last_replay_path
+            get_last_replay_path,
+            parse_slp_events
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

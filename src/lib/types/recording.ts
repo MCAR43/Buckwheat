@@ -77,3 +77,23 @@ export interface RecordingWithMetadata extends RecordingSession {
 	is_selected?: boolean;
 }
 
+// Game event types
+export enum GameEventType {
+	DEATH = 'death',
+	// Future: 'combo', 'neutral_exchange', 'sd', etc.
+}
+
+// Base game event interface
+export interface GameEvent {
+	type: GameEventType;
+	frame: number; // Frame number when event occurred
+	timestamp: number; // Time in seconds (frame / 60)
+}
+
+// Death event - when a player loses a stock
+export interface DeathEvent extends GameEvent {
+	type: GameEventType.DEATH;
+	port: number; // Which player died (1-4)
+	player_tag: string; // Player's tag/name
+}
+

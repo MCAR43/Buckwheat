@@ -294,7 +294,7 @@
 			</SidebarMenu>
 		</SidebarFooter>
 	</Sidebar>
-	<SidebarInset class="bg-background">
+	<SidebarInset class="flex flex-col bg-background">
 		<header class="flex h-16 shrink-0 items-center gap-2 border-b bg-sidebar px-4">
 			<SidebarTrigger class="-ml-1" />
 			<div class="h-4 w-px bg-sidebar-border"></div>
