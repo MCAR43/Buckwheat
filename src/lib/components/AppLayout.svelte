@@ -14,11 +14,14 @@
 		SidebarProvider,
 		SidebarTrigger
 	} from "$lib/components/ui/sidebar";
-	import { Home, Settings, Moon, Sun, Circle } from "@lucide/svelte";
+	import { Home, Settings, Moon, Sun, Circle, Cloud, LogIn, User } from "@lucide/svelte";
 	import type { Snippet } from "svelte";
 	import { navigation } from "$lib/stores/navigation.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
 	import { recording } from "$lib/stores/recording.svelte";
+	import { auth } from "$lib/stores/auth.svelte";
+	import AuthModal from "$lib/components/auth/AuthModal.svelte";
+	import { Button } from "$lib/components/ui/button";
 	import { onMount, onDestroy } from "svelte";
 	import { checkGameWindow, listGameWindows, getGameProcessName, setGameProcessName } from "$lib/commands.svelte";
 	import { invoke } from "@tauri-apps/api/core";
@@ -26,6 +29,7 @@
 	let sidebarOpen = $state(true);
 	let { children }: { children?: Snippet } = $props();
 	let pollingInterval: number | undefined;
+	let showAuthModal = $state(false);
 
 	// Initialize settings and start game window polling
 	onMount(async () => {
@@ -274,6 +278,18 @@
 								<span>Settings</span>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
+						{#if auth.isAuthenticated}
+							<SidebarMenuItem>
+								<SidebarMenuButton 
+									tooltipContent="Cloud Storage" 
+									onclick={() => navigation.navigateTo("cloud")}
+									isActive={navigation.currentPage === "cloud"}
+								>
+									<Cloud />
+									<span>Cloud Storage</span>
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+						{/if}
 					</SidebarMenu>
 				</SidebarGroupContent>
 			</SidebarGroup>
@@ -298,8 +314,21 @@
 		<header class="flex h-16 shrink-0 items-center gap-2 border-b bg-sidebar px-4">
 			<SidebarTrigger class="-ml-1" />
 			<div class="h-4 w-px bg-sidebar-border"></div>
-			<div class="flex flex-1 items-center gap-2">
+			<div class="flex flex-1 items-center justify-between gap-2">
 				<h1 class="text-lg font-semibold text-sidebar-foreground">Peppi</h1>
+				<div class="flex items-center gap-2">
+					{#if auth.isAuthenticated && auth.user}
+						<Button variant="ghost" size="sm" onclick={() => navigation.navigateTo("profile")}>
+							<User class="size-4 mr-2" />
+							{auth.user.email}
+						</Button>
+					{:else}
+						<Button variant="ghost" size="sm" onclick={() => showAuthModal = true}>
+							<LogIn class="size-4 mr-2" />
+							Log In
+						</Button>
+					{/if}
+				</div>
 			</div>
 		</header>
 		<div class="flex flex-1 flex-col gap-4 bg-background p-4 text-foreground">
@@ -308,3 +337,4 @@
 	</SidebarInset>
 </SidebarProvider>
 
+<AuthModal bind:open={showAuthModal} />

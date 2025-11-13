@@ -7,10 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies
 node_modules
-src-tauri/node_modules
-node_modules/
 dist
 dist-ssr
 *.local
@@ -26,33 +23,62 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment variables
-.env
-.env.local
-.env.*.local
+.cursor/
 
-# Build outputs
-build
-dist
-*.tsbuildinfo
+# Rust
+target/
+Cargo.lock
 
 # Tauri
-src-tauri/target
-src-tauri/gen
+src-tauri/target/
+src-tauri/Cargo.lock
 
-# Cursor
-.cursorrules
-CLAUDE
-.claude
+# Environment variables - NEVER COMMIT THESE
+.env
+.env.local
+.env.production
+.env.development
+
+# Keep the example file
+!.env.example
+
+# Supabase
+.supabase/
+
+# Cloudflare Workers
+workers/**/node_modules/
+workers/**/.wrangler/
+workers/**/dist/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Testing
-coverage
-.nyc_output
-
-# Misc
+# Sensitive data
 *.pem
+*.key
+*.cert
 
+# Temporary files
+*.tmp
+*.temp
+*~
+.#*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Build artifacts
+build/
+out/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Peppi specific
+peppi.json
+settings.json
+recordings/

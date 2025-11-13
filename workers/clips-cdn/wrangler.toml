@@ -1,0 +1,11 @@
+name = "peppi-clips-cdn"
+main = "src/index.ts"
+compatibility_date = "2024-11-13"
+
+# Uncomment to deploy
+# account_id = "6d4623d55f4724447ecd967ac4b7772e"
+
+# Environment variables (set via wrangler secret put)
+# B2_ENDPOINT - Your B2 endpoint URL
+# B2_CLIPS_BUCKET - Your B2 clips bucket name
+

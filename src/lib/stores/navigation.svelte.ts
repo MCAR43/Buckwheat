@@ -1,4 +1,4 @@
-type Page = "home" | "settings" | "replay";
+type Page = "home" | "settings" | "replay" | "cloud" | "profile";
 
 class NavigationStore {
 	currentPage = $state<Page>("home");

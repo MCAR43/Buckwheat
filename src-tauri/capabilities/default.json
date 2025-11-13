@@ -44,6 +44,15 @@
 	  "store:allow-set",
 	  "store:allow-save",
 	  "store:allow-load",
-	  "store:allow-delete"
+	  "store:allow-delete",
+	  "fs:allow-read-file",
+	  "fs:allow-write-file",
+	  "fs:allow-exists",
+	  "fs:allow-read-dir",
+	  "fs:allow-home-read-recursive",
+	  "fs:allow-video-read-recursive",
+	  "fs:allow-document-read-recursive",
+	  "fs:allow-download-read-recursive",
+	  "fs:allow-desktop-read-recursive"
 	]
 }

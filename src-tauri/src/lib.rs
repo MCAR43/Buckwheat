@@ -3,6 +3,7 @@ mod commands;
 mod game_detector;
 mod recorder;
 mod slippi;
+use commands::cloud::get_device_id;
 use commands::default::{read, write};
 use commands::settings::{
     get_recording_directory, get_setting, get_settings_path, open_settings_folder,
@@ -58,7 +59,9 @@ pub fn run() {
             get_recording_directory,
             open_file_location,
             get_last_replay_path,
-            parse_slp_events
+            parse_slp_events,
+            // Cloud storage command (device ID only)
+            get_device_id
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

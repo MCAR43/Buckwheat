@@ -13,12 +13,16 @@
 	import { recordingsStore } from "$lib/stores/recordings.svelte";
 	import { formatRelativeTime, formatFileSize, getStageName } from "$lib/utils/characters";
 	import CharacterIcon from "./CharacterIcon.svelte";
-	import { Play, FolderOpen, Trash2, Upload, RefreshCw } from "@lucide/svelte";
+	import { Play, FolderOpen, Trash2, Upload, RefreshCw, Loader2 } from "@lucide/svelte";
 	import { invoke } from "@tauri-apps/api/core";
 	import { handleTauriError, showSuccess } from "$lib/utils/errors";
 	import { navigation } from "$lib/stores/navigation.svelte";
+	import { cloudStorage } from "$lib/stores/cloud-storage.svelte";
+	import { auth } from "$lib/stores/auth.svelte";
+	import { toast } from "svelte-sonner";
 
 	let isRefreshing = $state(false);
+	let uploadingRecordings = $state(new Set<string>());
 
 	async function refreshRecordings() {
 		isRefreshing = true;
@@ -66,9 +70,46 @@
 		}
 	}
 
-	function handleUpload(id: string) {
-		console.log("☁️ Uploading recording:", id);
-		showSuccess("Upload to cloud (coming soon)");
+	async function handleUpload(id: string, videoPath: string | null) {
+		// Check if user is authenticated
+		if (!auth.isAuthenticated) {
+			toast.error("Please log in to upload to cloud storage");
+			return;
+		}
+
+		// Check if video path exists
+		if (!videoPath) {
+			toast.error("No video file found for this recording");
+			return;
+		}
+
+		// Check if already uploading
+		if (uploadingRecordings.has(id)) {
+			return;
+		}
+
+		console.log("☁️ Uploading recording to cloud:", id, videoPath);
+		uploadingRecordings.add(id);
+		
+		try {
+			// Find the recording to get metadata
+			const recording = recordingsStore.recordings.find(r => r.id === id);
+			const metadata = {
+				recording_id: id,
+				slippi_metadata: recording?.slippi_metadata || null,
+				duration: recording?.duration || null,
+			};
+
+			// Call the cloud storage upload
+			await cloudStorage.uploadVideo(videoPath, metadata);
+			
+			toast.success("Upload started! Check the Cloud Storage page for progress.");
+		} catch (error) {
+			console.error("Upload failed:", error);
+			toast.error(error instanceof Error ? error.message : "Failed to start upload");
+		} finally {
+			uploadingRecordings.delete(id);
+		}
 	}
 </script>
 
@@ -233,10 +274,15 @@
 										<Button
 											variant="ghost"
 											size="sm"
-											onclick={() => handleUpload(recording.id)}
-											title="Upload to cloud"
+											onclick={() => handleUpload(recording.id, recording.video_path)}
+											title={auth.isAuthenticated ? "Upload to cloud" : "Log in to upload"}
+											disabled={!auth.isAuthenticated || !recording.video_path || uploadingRecordings.has(recording.id)}
 										>
-											<Upload class="size-4" />
+											{#if uploadingRecordings.has(recording.id)}
+												<Loader2 class="size-4 animate-spin" />
+											{:else}
+												<Upload class="size-4" />
+											{/if}
 										</Button>
 										<Button
 											variant="ghost"

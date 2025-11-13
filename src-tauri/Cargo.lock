@@ -3003,6 +3003,7 @@ dependencies = [
  "tauri-plugin-store",
  "thiserror 2.0.17",
  "tokio",
+ "uuid",
  "walkdir",
  "wasapi",
  "windows 0.58.0",
