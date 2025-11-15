@@ -205,26 +205,38 @@ class RecordingsStore {
 			});
 
 		this.eventListenerPromises.push(
-			listen("recording-started", () => {
+			listen<string>("recording-started", (event) => {
 				recording.start();
+				// For auto recordings, update currentReplayPath to video output path
+				// (markers need to match the video path, not .slp path)
+				// The event.payload is the video output path (.mp4)
+				if (event.payload) {
+					recording.setReplayPath(event.payload);
+				}
 				showSuccess(recording.currentReplayPath ? "Auto-recording started" : "Recording started");
 			})
 		);
 
 		this.eventListenerPromises.push(
 			listen<string>("last-replay-updated", (event) => {
-				recording.setReplayPath(event.payload);
+				// Only set .slp path if we're not already recording with a video path
+				// (for auto recordings, recording-started will set the video path)
+				if (!recording.isRecording || !recording.currentReplayPath?.endsWith('.mp4')) {
+					recording.setReplayPath(event.payload);
+				}
 			})
 		);
 
 		this.eventListenerPromises.push(
-			listen("recording-stopped", async () => {
+			listen<string>("recording-stopped", async (event) => {
 				recording.stop();
 
-				if (recording.currentReplayPath) {
+				// Use the video path from the event payload (guaranteed to be correct)
+				const videoPath = event.payload || recording.currentReplayPath;
+				if (videoPath) {
 					try {
 						const clips = await invoke<string[]>("process_clip_markers", {
-							recordingFile: recording.currentReplayPath
+							recordingFile: videoPath
 						});
 						if (clips.length > 0) {
 							showSuccess(`Recording stopped - ${clips.length} clip(s) created!`);

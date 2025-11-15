@@ -4,7 +4,7 @@ interface Env {
 }
 
 export default {
-	async fetch(request: Request, env: Env): Promise<Response> {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const url = new URL(request.url);
 		
 		// Handle CORS preflight
@@ -12,8 +12,9 @@ export default {
 			return new Response(null, {
 				headers: {
 					'Access-Control-Allow-Origin': '*',
-					'Access-Control-Allow-Methods': 'GET, OPTIONS',
-					'Access-Control-Allow-Headers': '*',
+					'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+					'Access-Control-Allow-Headers': 'Range',
+					'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges',
 				},
 			});
 		}
@@ -43,23 +44,86 @@ export default {
 			// Construct B2 URL
 			const b2Url = `${env.B2_ENDPOINT}/${env.B2_CLIPS_BUCKET}/clips/${shareCode}/${fileName}`;
 
-			// Fetch from B2 (Cloudflare will cache this)
-			const b2Response = await fetch(b2Url);
+			// Check cache first (Cloudflare Cache API)
+			const cacheKey = new Request(b2Url, request);
+			const cache = caches.default;
+			const cachedResponse = await cache.match(cacheKey);
+
+			// Handle Range requests for video streaming
+			const rangeHeader = request.headers.get('Range');
+			
+			if (rangeHeader) {
+				// Fetch from B2 with Range header
+				const b2Request = new Request(b2Url, {
+					headers: {
+						'Range': rangeHeader,
+					},
+				});
+
+				const b2Response = await fetch(b2Request);
+
+				if (!b2Response.ok && b2Response.status !== 206) {
+					return new Response('Clip not found', { status: 404 });
+				}
+
+				// Extract range info from response
+				const contentRange = b2Response.headers.get('Content-Range');
+				const contentLength = b2Response.headers.get('Content-Length');
+				const contentType = b2Response.headers.get('Content-Type') || 'video/mp4';
+
+				// Return with proper Range response headers
+				return new Response(b2Response.body, {
+					status: b2Response.status === 206 ? 206 : 200,
+					headers: {
+						'Content-Type': contentType,
+						'Content-Range': contentRange || '',
+						'Content-Length': contentLength || '',
+						'Accept-Ranges': 'bytes',
+						'Cache-Control': 'public, max-age=31536000, immutable', // 1 year (immutable content)
+						'Access-Control-Allow-Origin': '*',
+						'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges',
+					},
+				});
+			}
+
+			// For non-range requests, check cache first
+			if (cachedResponse) {
+				return cachedResponse;
+			}
+
+			// Fetch from B2
+			const b2Response = await fetch(b2Url, {
+				headers: {
+					// Only fetch what we need for HEAD requests
+					...(request.method === 'HEAD' ? {} : {}),
+				},
+			});
 
 			if (!b2Response.ok) {
 				return new Response('Clip not found', { status: 404 });
 			}
 
-			// Return with caching headers
-			return new Response(b2Response.body, {
+			// Get content length and type
+			const contentLength = b2Response.headers.get('Content-Length');
+			const contentType = b2Response.headers.get('Content-Type') || 'video/mp4';
+
+			// Create response with proper headers
+			const response = new Response(b2Response.body, {
 				status: b2Response.status,
 				headers: {
-					'Content-Type': b2Response.headers.get('Content-Type') || 'video/mp4',
-					'Cache-Control': 'public, max-age=31536000', // 1 year (immutable content)
+					'Content-Type': contentType,
+					'Content-Length': contentLength || '',
+					'Accept-Ranges': 'bytes',
+					'Cache-Control': 'public, max-age=31536000, immutable', // 1 year (immutable content)
 					'Access-Control-Allow-Origin': '*',
-					'Content-Length': b2Response.headers.get('Content-Length') || '',
+					'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges',
 				},
 			});
+
+			// Cache the response (for non-range requests)
+			ctx.waitUntil(cache.put(cacheKey, response.clone()));
+
+			return response;
 		} catch (error) {
 			console.error('Error fetching from B2:', error);
 			return new Response('Error loading clip', { status: 500 });
@@ -173,4 +237,3 @@ function getClipViewerHTML(shareCode: string): string {
 </html>
 	`;
 }
-

@@ -429,13 +429,13 @@ async fn trigger_auto_recording(app: tauri::AppHandle, slp_path: String) -> Resu
 
     configure_target_window_from_settings(&state);
     start_recording_with_quality(&state, &output_path, quality)?;
-    // Store the .slp path associated with this recording
+    // Store the video output path (not .slp path) so markers match correctly
     if let Ok(mut current_file) = state.current_recording_file.lock() {
-        *current_file = Some(slp_path.clone());
+        *current_file = Some(output_path.clone());
     }
 
-    // Emit event to frontend
-    if let Err(e) = app.emit("recording-started", output_path) {
+    // Emit event to frontend with video output path
+    if let Err(e) = app.emit("recording-started", output_path.clone()) {
         log::error!("Failed to emit recording-started event: {:?}", e);
     }
 
