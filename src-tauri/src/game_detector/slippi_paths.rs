@@ -40,4 +40,3 @@ mod tests {
         assert!(path.to_str().is_some());
     }
 }
-
